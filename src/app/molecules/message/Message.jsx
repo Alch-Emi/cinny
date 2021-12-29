@@ -300,7 +300,7 @@ function pickEmoji(e, roomId, eventId, roomTimeline) {
   });
 }
 
-function genReactionMsg(userIds, reaction) {
+function genReactionMsg(userIds, emoji) {
   const genLessContText = (text) => <span style={{ opacity: '.6' }}>{text}</span>;
   let msg = <></>;
   userIds.forEach((userId, index) => {
@@ -313,8 +313,8 @@ function genReactionMsg(userIds, reaction) {
   return (
     <>
       {msg}
-      {genLessContText(' reacted with')}
-      {twemojify(reaction, { className: 'react-emoji' })}
+      {genLessContText(' reacted with ')}
+      {emoji}
     </>
   );
 }
@@ -322,17 +322,31 @@ function genReactionMsg(userIds, reaction) {
 function MessageReaction({
   reaction, count, users, isActive, onClick,
 }) {
+  // Check to see if the reaction is an MXC
+  const mxcRegex = /mxc:\/\/[\w.-]+\/[\w-]+/g;
+  let emoji;
+  if (mxcRegex.test(reaction)) {
+    // If it is, then treat it like the MXC of a custom emoji
+    const httpUrl = initMatrix.matrixClient.mxcUrlToHttp(reaction, 16, 16, 'crop');
+    emoji = (
+      <img src={httpUrl} alt="custom emoji reaction" data-mx-emoticon />
+    );
+  } else {
+    // Otherwise, twemojify it as normal
+    emoji = twemojify(reaction, { className: 'react-emoji' });
+  }
+
   return (
     <Tooltip
       className="msg__reaction-tooltip"
-      content={<Text variant="b2">{users.length > 0 ? genReactionMsg(users, reaction) : 'Unable to load who has reacted'}</Text>}
+      content={<Text variant="b2">{users.length > 0 ? genReactionMsg(users, emoji) : 'Unable to load who has reacted'}</Text>}
     >
       <button
         onClick={onClick}
         type="button"
         className={`msg__reaction${isActive ? ' msg__reaction--active' : ''}`}
       >
-        { twemojify(reaction, { className: 'react-emoji' }) }
+        { emoji }
         <Text variant="b3" className="msg__reaction-count">{count}</Text>
       </button>
     </Tooltip>
