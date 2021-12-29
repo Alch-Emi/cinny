@@ -171,5 +171,5 @@ function getEmojiForCompletion(room) {
 }
 
 export {
-  getUserImagePack, getShortcodeToEmoji, getEmojiForCompletion, getPacksInRoom,
+  getUserImagePack, getShortcodeToEmoji, getRelevantPacks, getEmojiForCompletion, getPacksInRoom
 };
