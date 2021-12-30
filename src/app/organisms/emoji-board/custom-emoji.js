@@ -100,6 +100,39 @@ function getPacksInRoom(room) {
     .filter((p) => p !== null);
 }
 
+// Produce a list of all packs from the user's image pack rooms.
+//
+// To be clear, these are image packs which are referenced by, but not embeded in, the
+// user's account data.  From the users perspective, they joined a room and flipped a
+// switch next to an image pack in that room, indicating that they want to be able to use
+// that pack anywhere.  That pack will now be returned by this method.
+//
+// These packs MAY overlap with the packs returned by `getPacksInRoom()` if the user has
+// enabled one of the packs in the current room.
+//
+// Currently, if the user is not in a room referenced by their account data (e.g. if they
+// added a pack and then left the relevant room without disabling the pack), the pack will
+// NOT be returned here.
+//
+// The only argument is a Matrix client
+//
+// An empty list will be returned if the user has not configured any image pack rooms.
+function getFromImagePackRooms(mx) {
+  const accountDataEvent = mx.getAccountData('im.ponies.emote_rooms') ?? { event: { content: {} } };
+  const eventContent = accountDataEvent.event.content;
+  const emoteRooms = eventContent.rooms ?? {};
+  return Object.entries(emoteRooms)
+    .flatMap(([roomId, keyObjects]) => {
+      const keys = Object.keys(keyObjects);
+      const room = mx.getRoom(roomId);
+      if (room) {
+        return getPacksInRoom(room)
+          .filter((pack) => keys.indexOf(pack.event.state_key) !== -1);
+      }
+      return [];
+    });
+}
+
 // Produce a list of all image packs which should be shown for a given room
 //
 // This includes packs in that room, the user's personal images, and will eventually
@@ -111,11 +144,17 @@ function getPacksInRoom(room) {
 //
 // Packs will be returned in the order that shortcode conflicts should be resolved, with
 // higher priority packs coming first.
+//
+// Packs will be deduplicated if a pack appears more than once
 function getRelevantPacks(room) {
-  return [].concat(
+  const packs = [].concat(
     getUserImagePack(room.client) ?? [],
     getPacksInRoom(room),
+    getFromImagePackRooms(room.client),
   );
+  const events = packs.map((pack) => pack.event.event_id);
+
+  return packs.filter((pack, indx) => events.indexOf(pack.event.event_id) === indx);
 }
 
 // Returns all user+room emojis and all standard unicode emojis
